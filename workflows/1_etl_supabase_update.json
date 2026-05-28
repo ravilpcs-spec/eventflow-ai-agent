@@ -1,0 +1,473 @@
+{
+  "name": "1_ETL_Supabase_Update_RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "[YOUR_GOOGLE_DRIVE_FOLDER_ID]",
+          "mode": "list",
+          "cachedResultName": "EventFlow- проект",
+          "cachedResultUrl": "[HIDDEN_DRIVE_URL]"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        64
+      ],
+      "id": "5d4d696d-b604-4b8b-9a89-93d1d28898dc",
+      "name": "Google Drive Trigger: Update",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "[YOUR_GOOGLE_DRIVE_CREDENTIAL_ID]",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "[YOUR_GOOGLE_DRIVE_FOLDER_ID]",
+          "mode": "list",
+          "cachedResultName": "EventFlow- проект",
+          "cachedResultUrl": "[HIDDEN_DRIVE_URL]"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        -128
+      ],
+      "id": "4db9b2f7-63f2-4600-8d35-f7f71a807574",
+      "name": "Google Drive Trigger: Create",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "[YOUR_GOOGLE_DRIVE_CREDENTIAL_ID]",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        176,
+        -16
+      ],
+      "id": "c0ba402f-b7bf-4b47-aa27-b3db7d31b3d8",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "279abd53-3625-473b-a96d-e2c2aa29c59e",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f7a023ac-c3ff-417f-a4f1-caf3b7043566",
+              "name": "file_type",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "008167ae-bb6d-4a41-875d-7ad49e3e08bd",
+              "name": "file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "0c1a2222-ee96-458b-ab02-1a7ffbcf3b3c",
+              "name": "file_url",
+              "value": "={{ $json.webViewLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        656,
+        0
+      ],
+      "id": "ff21947a-7fee-4df8-8396-d3ade732adac",
+      "name": "Set Document Metadata"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "documents",
+        "filterType": "string",
+        "filterString": "=metadata->>file_id=like.{{ $json.file_id }}"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "63749e25-81a3-40e6-aef4-82542c28727a",
+      "name": "Delete old vectors in Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "[YOUR_SUPABASE_CREDENTIAL_ID]",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Set Document Metadata').item.json.file_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain",
+              "drawingsToFormat": "application/pdf",
+              "slidesToFormat": "application/pdf",
+              "sheetsToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "e9e1cdd7-a8d8-41cb-9c6b-369886f0ade5",
+      "name": "Download File",
+      "executeOnce": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "[YOUR_GOOGLE_DRIVE_CREDENTIAL_ID]",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1376,
+        -16
+      ],
+      "id": "4e88fc49-14d9-4fcc-8626-72b1724871b5",
+      "name": "Insert to Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "[YOUR_SUPABASE_CREDENTIAL_ID]",
+          "name": "Supabase Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        208
+      ],
+      "id": "a17171af-2f6a-4bf8-be72-cdf928b2113e",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "[YOUR_OPENAI_CREDENTIAL_ID]",
+          "name": "OpenAI Connection"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "file_id",
+                "value": "={{ $('Set Document Metadata').item.json.file_id }}"
+              },
+              {
+                "name": "file_type",
+                "value": "={{ $('Set Document Metadata').item.json.file_type }}"
+              },
+              {
+                "name": "file_name",
+                "value": "={{ $('Set Document Metadata').item.json.file_name }}"
+              },
+              {
+                "name": "file_url",
+                "value": "={{ $('Set Document Metadata').item.json.file_url }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1472,
+        176
+      ],
+      "id": "17da2015-cd90-407f-83b5-412584e13ed5",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 600,
+        "chunkOverlap": 100,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        304
+      ],
+      "id": "5ef2e81b-d936-4a38-9c5e-0cc4c08ab63e",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7bb65883-e304-44f6-a623-18531a4801d4",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.spreadsheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Spreadsheet"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "700769e2-a446-4a9d-badc-8ff113f6180e",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Document"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d715e67d-a4c4-4274-8db2-967af80ec9c3",
+      "name": "Switch file type"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger: Update": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger: Create": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Switch file type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Document Metadata": {
+      "main": [
+        [
+          {
+            "node": "Delete old vectors in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete old vectors in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Insert to Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert to Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert to Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch file type": {
+      "main": [
+        [
+          {
+            "node": "Set Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
